@@ -22,7 +22,42 @@ document.addEventListener('DOMContentLoaded', function() {
             item.classList.add('active');
         }
     });
+
+    // Initialize Auto Logout
+    initAutoLogout();
 });
+
+/**
+ * AUTO LOGOUT FUNCTIONALITY
+ * Logs out user after 5 minutes of inactivity
+ */
+function initAutoLogout() {
+    // 5 minutes in milliseconds
+    const INACTIVITY_LIMIT = 5 * 60 * 1000; 
+    let logoutTimer;
+
+    function resetTimer() {
+        clearTimeout(logoutTimer);
+        // Only set timer if we are NOT on the login page
+        if (!window.location.pathname.toLowerCase().includes('login')) {
+            logoutTimer = setTimeout(logoutUser, INACTIVITY_LIMIT);
+        }
+    }
+
+    function logoutUser() {
+        // Logic to clear session/tokens would go here
+        alert("Session expired due to inactivity. You will be logged out.");
+        window.location.href = '/Account/Login';
+    }
+
+    // Listen for user activity
+    window.onload = resetTimer;
+    document.onmousemove = resetTimer;
+    document.onkeypress = resetTimer;
+    document.ontouchstart = resetTimer; // For mobile
+    document.onclick = resetTimer;      // catches touchpad clicks
+    document.onscroll = resetTimer;     // catches scrolling
+}
 
 /**
  * MOCK DATA SERVICES
