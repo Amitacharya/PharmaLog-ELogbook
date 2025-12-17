@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Lock, Plus, FileText, Clock, CheckCircle, AlertCircle, Search } from "lucide-react";
+import { Lock, Plus, FileText, Clock, CheckCircle, AlertCircle, Search, Eye, Calendar, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEquipment, useLogEntries, useCreateLogEntry, useSubmitLogEntry, useApproveLogEntry } from "@/lib/api";
 import { Spinner } from "@/components/ui/spinner";
@@ -26,8 +26,10 @@ export default function LogEntry() {
 
   const [activeTab, setActiveTab] = useState("new");
   const [isSignModalOpen, setIsSignModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [signAction, setSignAction] = useState<"submit" | "approve">("submit");
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
+  const [viewingLog, setViewingLog] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -151,6 +153,18 @@ export default function LogEntry() {
     setSelectedLogId(logId);
     setSignAction("approve");
     setIsSignModalOpen(true);
+  };
+
+  const handleViewDetails = (log: any) => {
+    setViewingLog(log);
+    setIsDetailsModalOpen(true);
+  };
+
+  const handleApproveFromDetails = () => {
+    if (viewingLog) {
+      setIsDetailsModalOpen(false);
+      handleApprove(viewingLog.id);
+    }
   };
 
   const filteredLogs = logs?.filter(log => {
@@ -465,16 +479,28 @@ export default function LogEntry() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {log.status === "Submitted" && (user?.role === "QA" || user?.role === "Admin") && (
+                            <div className="flex gap-1">
                               <Button 
                                 size="sm" 
-                                onClick={() => handleApprove(log.id)}
-                                data-testid={`button-approve-${log.id}`}
-                                className="h-7 text-xs"
+                                variant="outline"
+                                onClick={() => handleViewDetails(log)}
+                                data-testid={`button-view-${log.id}`}
+                                className="h-7 text-xs gap-1"
                               >
-                                Approve
+                                <Eye className="h-3 w-3" />
+                                View
                               </Button>
-                            )}
+                              {log.status === "Submitted" && (user?.role === "QA" || user?.role === "Admin") && (
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => handleApprove(log.id)}
+                                  data-testid={`button-approve-${log.id}`}
+                                  className="h-7 text-xs"
+                                >
+                                  Approve
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -551,6 +577,101 @@ export default function LogEntry() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Log Details Modal */}
+      <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-blue-600" />
+              Log Entry Details
+            </DialogTitle>
+            <DialogDescription>
+              {viewingLog?.logId} - Complete activity log information
+            </DialogDescription>
+          </DialogHeader>
+          {viewingLog && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Badge variant="outline" className={cn(
+                  "text-xs font-medium",
+                  viewingLog.status === "Approved" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                  viewingLog.status === "Submitted" ? "bg-amber-50 text-amber-700 border-amber-200" :
+                  "bg-slate-100 text-slate-600 border-slate-200"
+                )}>
+                  {viewingLog.status === "Submitted" ? "Pending Approval" : viewingLog.status}
+                </Badge>
+                <span className="text-xs text-slate-500">
+                  Created: {new Date(viewingLog.createdAt).toLocaleString()}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg border">
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-medium">Equipment</p>
+                  <p className="text-sm font-semibold text-slate-900">{getEquipmentName(viewingLog.equipmentId)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-medium">Activity Type</p>
+                  <p className="text-sm font-semibold text-slate-900">{viewingLog.activityType}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-medium">Start Time</p>
+                  <p className="text-sm font-semibold text-slate-900">{new Date(viewingLog.startTime).toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-medium">End Time</p>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {viewingLog.endTime ? new Date(viewingLog.endTime).toLocaleString() : "In progress"}
+                  </p>
+                </div>
+                {viewingLog.batchNumber && (
+                  <div>
+                    <p className="text-xs text-slate-500 uppercase font-medium">Batch Number</p>
+                    <p className="text-sm font-semibold text-slate-900">{viewingLog.batchNumber}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 bg-white rounded-lg border">
+                <p className="text-xs text-slate-500 uppercase font-medium mb-2">Description / Observations</p>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap">{viewingLog.description}</p>
+              </div>
+
+              {viewingLog.readings && (
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-xs text-blue-600 uppercase font-medium mb-2">Readings / Measurements</p>
+                  <p className="text-sm text-blue-900 font-mono">{viewingLog.readings}</p>
+                </div>
+              )}
+
+              {viewingLog.submittedAt && (
+                <div className="p-3 bg-slate-50 rounded-lg border text-xs">
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <User className="h-3 w-3" />
+                    <span>Submitted on {new Date(viewingLog.submittedAt).toLocaleString()}</span>
+                  </div>
+                  {viewingLog.approvedAt && (
+                    <div className="flex items-center gap-2 text-emerald-600 mt-1">
+                      <CheckCircle className="h-3 w-3" />
+                      <span>Approved on {new Date(viewingLog.approvedAt).toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDetailsModalOpen(false)}>Close</Button>
+            {viewingLog?.status === "Submitted" && (user?.role === "QA" || user?.role === "Admin") && (
+              <Button onClick={handleApproveFromDetails} data-testid="button-approve-from-details">
+                <Lock className="h-4 w-4 mr-2" />
+                Approve Entry
+              </Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
