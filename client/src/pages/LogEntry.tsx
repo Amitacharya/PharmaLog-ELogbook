@@ -34,6 +34,7 @@ export default function LogEntry() {
   const [formData, setFormData] = useState({
     equipmentId: "",
     activityType: "",
+    activityDate: new Date().toISOString().split('T')[0], // Today's date as default
     startTime: "",
     endTime: "",
     description: "",
@@ -51,7 +52,7 @@ export default function LogEntry() {
   };
 
   const handleCreateDraft = async () => {
-    if (!formData.equipmentId || !formData.activityType || !formData.startTime || !formData.description) {
+    if (!formData.equipmentId || !formData.activityType || !formData.activityDate || !formData.startTime || !formData.description) {
       toast({
         title: "Missing Fields",
         description: "Please fill in all required fields.",
@@ -60,14 +61,15 @@ export default function LogEntry() {
       return;
     }
 
-    const today = new Date();
+    // Parse the selected date
+    const [year, month, day] = formData.activityDate.split('-').map(Number);
     const [startHour, startMin] = formData.startTime.split(':').map(Number);
-    const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), startHour, startMin);
+    const startDate = new Date(year, month - 1, day, startHour, startMin);
     
     let endDate: Date | undefined;
     if (formData.endTime) {
       const [endHour, endMin] = formData.endTime.split(':').map(Number);
-      endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), endHour, endMin);
+      endDate = new Date(year, month - 1, day, endHour, endMin);
     }
 
     try {
@@ -126,6 +128,7 @@ export default function LogEntry() {
       setFormData({
         equipmentId: "",
         activityType: "",
+        activityDate: new Date().toISOString().split('T')[0],
         startTime: "",
         endTime: "",
         description: "",
@@ -291,6 +294,17 @@ export default function LogEntry() {
                     </Select>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Activity Date <span className="text-rose-500">*</span></Label>
+                    <Input 
+                      type="date" 
+                      value={formData.activityDate}
+                      onChange={(e) => handleFormChange("activityDate", e.target.value)}
+                      data-testid="input-activity-date"
+                      className="h-10"
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Start Time <span className="text-rose-500">*</span></Label>
@@ -348,6 +362,7 @@ export default function LogEntry() {
                 onClick={() => setFormData({
                   equipmentId: "",
                   activityType: "",
+                  activityDate: new Date().toISOString().split('T')[0],
                   startTime: "",
                   endTime: "",
                   description: "",
