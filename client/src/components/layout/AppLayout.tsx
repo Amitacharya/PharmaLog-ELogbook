@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { 
@@ -85,7 +85,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [passwordData, setPasswordData] = useState({ current: "", new: "", confirm: "" });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [sessionTimeLeft, setSessionTimeLeft] = useState(SESSION_TIMEOUT);
-  const [lastActivity, setLastActivity] = useState(Date.now());
+  
+  // Use ref for lastActivity to avoid re-creating interval on every activity
+  const lastActivityRef = useRef(Date.now());
+  const warningShownRef = useRef(false);
 
   // Update page title dynamically
   useEffect(() => {
@@ -93,26 +96,46 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     document.title = `${currentPage} | PharmaLog`;
   }, [location]);
 
-  // Session timeout logic
+  // Reset session on any user activity
+  const resetSession = useCallback(() => {
+    lastActivityRef.current = Date.now();
+    setSessionTimeLeft(SESSION_TIMEOUT);
+    warningShownRef.current = false;
+  }, []);
+
+  // Session timeout logic - activity listeners
   useEffect(() => {
-    const handleActivity = () => setLastActivity(Date.now());
+    // Throttle activity updates to avoid excessive state changes
+    let throttleTimer: NodeJS.Timeout | null = null;
+    
+    const handleActivity = () => {
+      if (throttleTimer) return;
+      throttleTimer = setTimeout(() => {
+        throttleTimer = null;
+      }, 500);
+      resetSession();
+    };
     
     window.addEventListener("mousemove", handleActivity);
     window.addEventListener("keydown", handleActivity);
     window.addEventListener("click", handleActivity);
+    window.addEventListener("scroll", handleActivity);
+    window.addEventListener("touchstart", handleActivity);
     
     return () => {
       window.removeEventListener("mousemove", handleActivity);
       window.removeEventListener("keydown", handleActivity);
       window.removeEventListener("click", handleActivity);
+      window.removeEventListener("scroll", handleActivity);
+      window.removeEventListener("touchstart", handleActivity);
+      if (throttleTimer) clearTimeout(throttleTimer);
     };
-  }, []);
+  }, [resetSession]);
 
+  // Session countdown timer
   useEffect(() => {
-    let warningShown = false;
-    
     const interval = setInterval(() => {
-      const elapsed = Date.now() - lastActivity;
+      const elapsed = Date.now() - lastActivityRef.current;
       const remaining = SESSION_TIMEOUT - elapsed;
       setSessionTimeLeft(Math.max(0, remaining));
       
@@ -124,19 +147,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           variant: "destructive",
         });
         logout();
-      } else if (remaining <= WARNING_THRESHOLD && !warningShown) {
-        warningShown = true;
+      } else if (remaining <= WARNING_THRESHOLD && !warningShownRef.current) {
+        warningShownRef.current = true;
         toast({
           title: "Session Expiring Soon",
           description: "Your session will expire in 1 minute due to inactivity.",
         });
-      } else if (remaining > WARNING_THRESHOLD) {
-        warningShown = false;
       }
     }, 1000);
     
     return () => clearInterval(interval);
-  }, [lastActivity, logout, toast]);
+  }, [logout, toast]);
 
   const formatTimeLeft = (ms: number) => {
     const minutes = Math.floor(ms / 60000);
