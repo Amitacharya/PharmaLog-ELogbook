@@ -10,16 +10,19 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useEquipment, useCreateEquipment, useDeleteEquipment, useLogEntries } from "@/lib/api";
+import { useEquipment, useCreateEquipment, useDeleteEquipment, useLogEntries, usePMSchedules } from "@/lib/api";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useLocation } from "wouter";
 
 export default function EquipmentMaster() {
   const { data: equipmentList, isLoading, isError } = useEquipment();
   const { data: allLogs } = useLogEntries();
+  const { data: pmSchedules } = usePMSchedules();
   const createEquipment = useCreateEquipment();
   const deleteEquipment = useDeleteEquipment();
+  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
@@ -98,14 +101,21 @@ export default function EquipmentMaster() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to decommission this equipment? This action cannot be undone.")) return;
+    if (!confirm("Are you sure you want to decommission this equipment?")) return;
     
     try {
-      await deleteEquipment.mutateAsync(id);
-      toast({
-        title: "Equipment Decommissioned",
-        description: "Equipment has been successfully removed from the system.",
-      });
+      const result = await deleteEquipment.mutateAsync(id);
+      if (result.equipment) {
+        toast({
+          title: "Equipment Set to Offline",
+          description: "Equipment has log entries and was marked as offline instead of deleted.",
+        });
+      } else {
+        toast({
+          title: "Equipment Decommissioned",
+          description: "Equipment has been successfully removed from the system.",
+        });
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -127,6 +137,18 @@ export default function EquipmentMaster() {
 
   const getEquipmentLogs = (equipmentId: string) => {
     return allLogs?.filter(log => log.equipmentId === equipmentId) || [];
+  };
+
+  const getEquipmentPMSchedules = (equipmentId: string) => {
+    return pmSchedules?.filter(schedule => schedule.equipmentId === equipmentId) || [];
+  };
+
+  const hasPMSchedule = (equipmentId: string) => {
+    return getEquipmentPMSchedules(equipmentId).length > 0;
+  };
+
+  const handleViewPMSchedule = (equipment: any) => {
+    setLocation(`/pm?equipment=${equipment.id}`);
   };
 
   const filteredEquipment = equipmentList?.filter(item => 
@@ -441,10 +463,12 @@ export default function EquipmentMaster() {
                             <FileText className="h-4 w-4 mr-2" />
                             View Logs
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Calendar className="h-4 w-4 mr-2" />
-                            PM Schedule
-                          </DropdownMenuItem>
+                          {hasPMSchedule(item.id) && (
+                            <DropdownMenuItem onClick={() => handleViewPMSchedule(item)} data-testid={`button-pm-schedule-${item.id}`}>
+                              <Calendar className="h-4 w-4 mr-2" />
+                              PM Schedule
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
                             className="text-rose-600" 

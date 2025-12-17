@@ -275,12 +275,37 @@ export async function registerRoutes(
     }
   });
 
-  // Delete equipment
+  // Delete (decommission) equipment
   app.delete("/api/equipment/:id", requireAuth, async (req, res) => {
     try {
       const oldEquipment = await storage.getEquipmentById(req.params.id);
       if (!oldEquipment) {
         return res.status(404).json({ error: "Equipment not found" });
+      }
+
+      // Check if equipment has associated log entries
+      const logs = await storage.getAllLogEntries();
+      const equipmentLogs = logs.filter(log => log.equipmentId === req.params.id);
+      
+      if (equipmentLogs.length > 0) {
+        // Instead of deleting, update status to "Decommissioned"
+        const updatedEquipment = await storage.updateEquipment(req.params.id, {
+          status: "Offline",
+        });
+
+        await logAudit(
+          req.session.userId!,
+          "UPDATE",
+          "Equipment",
+          req.params.id,
+          oldEquipment,
+          { ...updatedEquipment, decommissioned: true }
+        );
+
+        return res.json({ 
+          message: "Equipment marked as offline (has associated log entries)",
+          equipment: updatedEquipment
+        });
       }
 
       await storage.deleteEquipment(req.params.id);
@@ -296,6 +321,7 @@ export async function registerRoutes(
 
       res.json({ message: "Equipment deleted" });
     } catch (error) {
+      console.error("Delete equipment error:", error);
       res.status(500).json({ error: "Failed to delete equipment" });
     }
   });
