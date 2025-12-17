@@ -4,22 +4,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Filter, MoreHorizontal, Plus, FileSpreadsheet, Search, AlertTriangle } from "lucide-react";
+import { Filter, MoreHorizontal, Plus, FileSpreadsheet, Search, AlertTriangle, Eye, FileText, Calendar, Settings } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useEquipment, useCreateEquipment, useDeleteEquipment } from "@/lib/api";
+import { useEquipment, useCreateEquipment, useDeleteEquipment, useLogEntries } from "@/lib/api";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 export default function EquipmentMaster() {
   const { data: equipmentList, isLoading, isError } = useEquipment();
+  const { data: allLogs } = useLogEntries();
   const createEquipment = useCreateEquipment();
   const deleteEquipment = useDeleteEquipment();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isLogsDialogOpen, setIsLogsDialogOpen] = useState(false);
+  const [selectedEquipment, setSelectedEquipment] = useState<any>(null);
   
   const [formData, setFormData] = useState({
     equipmentId: "",
@@ -61,7 +66,6 @@ export default function EquipmentMaster() {
       return;
     }
 
-    // Clean data - only send non-empty optional fields
     const cleanData = {
       equipmentId: formData.equipmentId,
       name: formData.name,
@@ -94,7 +98,7 @@ export default function EquipmentMaster() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to decommission this equipment?")) return;
+    if (!confirm("Are you sure you want to decommission this equipment? This action cannot be undone.")) return;
     
     try {
       await deleteEquipment.mutateAsync(id);
@@ -109,6 +113,20 @@ export default function EquipmentMaster() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleViewDetails = (equipment: any) => {
+    setSelectedEquipment(equipment);
+    setIsDetailsDialogOpen(true);
+  };
+
+  const handleViewLogs = (equipment: any) => {
+    setSelectedEquipment(equipment);
+    setIsLogsDialogOpen(true);
+  };
+
+  const getEquipmentLogs = (equipmentId: string) => {
+    return allLogs?.filter(log => log.equipmentId === equipmentId) || [];
   };
 
   const filteredEquipment = equipmentList?.filter(item => 
@@ -131,7 +149,7 @@ export default function EquipmentMaster() {
         <div className="text-center">
           <AlertTriangle className="h-12 w-12 text-rose-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-slate-900">Error Loading Equipment</h3>
-          <p className="text-slate-500">Failed to load equipment data. Please try again.</p>
+          <p className="text-slate-500">Failed to load equipment list. Please try again.</p>
         </div>
       </div>
     );
@@ -139,31 +157,27 @@ export default function EquipmentMaster() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900">Equipment Master</h2>
-          <p className="text-slate-500">Centralized registry of all GMP assets and qualification status.</p>
+          <p className="text-sm text-slate-500">Manage registered equipment, qualifications, and maintenance schedules.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Export
-          </Button>
+        <div className="flex gap-2">
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" data-testid="button-add-equipment">
-                <Plus className="mr-2 h-4 w-4" />
+              <Button className="gap-2" data-testid="button-add-equipment">
+                <Plus className="h-4 w-4" />
                 Add New Equipment
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Add New Equipment</DialogTitle>
+                <DialogTitle>Register New Equipment</DialogTitle>
                 <DialogDescription>
-                  Register new equipment in the GMP asset registry.
+                  Add a new piece of equipment to the GMP asset registry.
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
+              <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="equipmentId">Equipment ID *</Label>
@@ -200,11 +214,9 @@ export default function EquipmentMaster() {
                         <SelectItem value="Bioreactor">Bioreactor</SelectItem>
                         <SelectItem value="Centrifuge">Centrifuge</SelectItem>
                         <SelectItem value="Chromatography">Chromatography System</SelectItem>
-                        <SelectItem value="Fermenter">Fermenter</SelectItem>
-                        <SelectItem value="Mixer">Mixer</SelectItem>
-                        <SelectItem value="Pump">Pump</SelectItem>
-                        <SelectItem value="Tank">Tank</SelectItem>
-                        <SelectItem value="Filter">Filter System</SelectItem>
+                        <SelectItem value="Filtration">Filtration System</SelectItem>
+                        <SelectItem value="Storage">Storage Equipment</SelectItem>
+                        <SelectItem value="Sterilization">Sterilization</SelectItem>
                         <SelectItem value="Analyzer">Analyzer</SelectItem>
                         <SelectItem value="Other">Other</SelectItem>
                       </SelectContent>
@@ -222,10 +234,10 @@ export default function EquipmentMaster() {
                       <SelectContent>
                         <SelectItem value="Production Hall A">Production Hall A</SelectItem>
                         <SelectItem value="Production Hall B">Production Hall B</SelectItem>
-                        <SelectItem value="QC Lab">QC Lab</SelectItem>
-                        <SelectItem value="R&D Lab">R&D Lab</SelectItem>
-                        <SelectItem value="Warehouse">Warehouse</SelectItem>
-                        <SelectItem value="Utilities">Utilities</SelectItem>
+                        <SelectItem value="QC Laboratory">QC Laboratory</SelectItem>
+                        <SelectItem value="Downstream Suite">Downstream Suite</SelectItem>
+                        <SelectItem value="Cold Storage Room">Cold Storage Room</SelectItem>
+                        <SelectItem value="Utilities Area">Utilities Area</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -296,7 +308,6 @@ export default function EquipmentMaster() {
                         <SelectItem value="IQ">IQ (Installation Qualification)</SelectItem>
                         <SelectItem value="OQ">OQ (Operational Qualification)</SelectItem>
                         <SelectItem value="PQ">PQ (Performance Qualification)</SelectItem>
-                        <SelectItem value="Qualified">Qualified</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -393,7 +404,7 @@ export default function EquipmentMaster() {
                     <TableCell className="font-mono text-xs text-slate-500">{item.serialNumber || "-"}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={
-                        item.qualificationStatus === "Qualified" 
+                        item.qualificationStatus === "PQ" 
                           ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
                           : "bg-amber-50 text-amber-700 border-amber-200"
                       }>
@@ -422,9 +433,18 @@ export default function EquipmentMaster() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>View Details</DropdownMenuItem>
-                          <DropdownMenuItem>View Logs</DropdownMenuItem>
-                          <DropdownMenuItem>PM Schedule</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewDetails(item)} data-testid={`button-view-details-${item.id}`}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewLogs(item)} data-testid={`button-view-logs-${item.id}`}>
+                            <FileText className="h-4 w-4 mr-2" />
+                            View Logs
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Calendar className="h-4 w-4 mr-2" />
+                            PM Schedule
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
                             className="text-rose-600" 
@@ -443,6 +463,158 @@ export default function EquipmentMaster() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Equipment Details Modal */}
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-blue-600" />
+              Equipment Details
+            </DialogTitle>
+            <DialogDescription>
+              {selectedEquipment?.equipmentId} - Complete equipment information
+            </DialogDescription>
+          </DialogHeader>
+          {selectedEquipment && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Badge variant="outline" className={cn(
+                  "text-xs font-medium",
+                  selectedEquipment.status === "Operational" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                  selectedEquipment.status === "In Use" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                  selectedEquipment.status === "Maintenance" ? "bg-amber-50 text-amber-700 border-amber-200" :
+                  "bg-slate-100 text-slate-600 border-slate-200"
+                )}>
+                  {selectedEquipment.status}
+                </Badge>
+                <Badge variant="outline" className={cn(
+                  "text-xs font-medium",
+                  selectedEquipment.qualificationStatus === "PQ" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                  "bg-amber-50 text-amber-700 border-amber-200"
+                )}>
+                  {selectedEquipment.qualificationStatus || "Pending Qualification"}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg border">
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-medium">Equipment Name</p>
+                  <p className="text-sm font-semibold text-slate-900">{selectedEquipment.name}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-medium">Type</p>
+                  <p className="text-sm font-semibold text-slate-900">{selectedEquipment.type}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-medium">Manufacturer</p>
+                  <p className="text-sm font-semibold text-slate-900">{selectedEquipment.manufacturer || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-medium">Model</p>
+                  <p className="text-sm font-semibold text-slate-900">{selectedEquipment.model || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-medium">Serial Number</p>
+                  <p className="text-sm font-semibold text-slate-900 font-mono">{selectedEquipment.serialNumber || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-medium">Location</p>
+                  <p className="text-sm font-semibold text-slate-900">{selectedEquipment.location}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-medium">PM Frequency</p>
+                  <p className="text-sm font-semibold text-slate-900">{selectedEquipment.pmFrequency || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-medium">Created</p>
+                  <p className="text-sm font-semibold text-slate-900">{new Date(selectedEquipment.createdAt).toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              {selectedEquipment.description && (
+                <div className="p-4 bg-white rounded-lg border">
+                  <p className="text-xs text-slate-500 uppercase font-medium mb-2">Description</p>
+                  <p className="text-sm text-slate-700">{selectedEquipment.description}</p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>Close</Button>
+            <Button onClick={() => { setIsDetailsDialogOpen(false); handleViewLogs(selectedEquipment); }}>
+              <FileText className="h-4 w-4 mr-2" />
+              View Logs
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Equipment Logs Modal */}
+      <Dialog open={isLogsDialogOpen} onOpenChange={setIsLogsDialogOpen}>
+        <DialogContent className="sm:max-w-[700px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-blue-600" />
+              Activity Logs - {selectedEquipment?.name}
+            </DialogTitle>
+            <DialogDescription>
+              All log entries for {selectedEquipment?.equipmentId}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedEquipment && (
+            <div className="max-h-[400px] overflow-y-auto">
+              {getEquipmentLogs(selectedEquipment.id).length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <FileText className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+                  <p>No activity logs found for this equipment.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Log ID</TableHead>
+                      <TableHead>Activity</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {getEquipmentLogs(selectedEquipment.id).map((log) => (
+                      <TableRow key={log.id}>
+                        <TableCell className="font-mono text-xs font-medium text-blue-600">{log.logId}</TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-sm">{log.activityType}</p>
+                            <p className="text-xs text-slate-500 truncate max-w-[200px]">{log.description}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-500">
+                          {new Date(log.createdAt).toLocaleDateString()}<br/>
+                          <span className="font-mono">{new Date(log.createdAt).toLocaleTimeString()}</span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={cn(
+                            "text-xs font-medium",
+                            log.status === "Approved" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                            log.status === "Submitted" ? "bg-amber-50 text-amber-700 border-amber-200" :
+                            "bg-slate-100 text-slate-600 border-slate-200"
+                          )}>
+                            {log.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsLogsDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
