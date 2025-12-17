@@ -78,9 +78,6 @@ export default function Login() {
           <p className="text-sm text-slate-500">
             GAMP-5 Validated | ALCOA+ Principles | Data Integrity Assured
           </p>
-          <p className="text-sm text-slate-400">
-            Powered by <span className="text-blue-400 font-medium">Acharya Infosystems LLP</span>
-          </p>
         </div>
       </div>
 

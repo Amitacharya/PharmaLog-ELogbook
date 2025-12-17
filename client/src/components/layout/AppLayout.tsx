@@ -57,6 +57,7 @@ const navItems: NavItem[] = [
   { icon: FileBarChart, label: "Reports", href: "/reports" },
   { icon: Users, label: "User Management", href: "/users", roles: ["Admin", "QA"] },
   { icon: Activity, label: "Audit Trail", href: "/audit", roles: ["Admin", "QA", "Supervisor"] },
+  { icon: Settings, label: "Admin Settings", href: "/admin", roles: ["Admin"] },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -350,8 +351,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         <footer className="border-t bg-white px-6 py-3">
           <div className="flex items-center justify-between text-xs text-slate-500">
-            <span>PharmaLog v2.4.1 • 21 CFR Part 11 Compliant</span>
-            <span>Audit Trail Enabled • All actions are logged</span>
+            <span>PharmaLog v2.4.1 • 21 CFR Part 11 Compliant • Audit Trail Enabled</span>
+            <span className="text-slate-400">
+              Powered by <span className="text-blue-600 font-medium">Acharya Infosystems LLP</span>
+            </span>
           </div>
         </footer>
       </div>
