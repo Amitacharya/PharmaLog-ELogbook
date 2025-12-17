@@ -10,8 +10,8 @@ export function RouteLoader() {
   if (!isLoading) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50">
-      <div className="h-1 w-full bg-slate-200 overflow-hidden">
+    <div className="fixed top-0 left-0 right-0 z-50 pointer-events-none">
+      <div className="h-1 w-full bg-slate-200/50 overflow-hidden">
         <div 
           className="h-full bg-gradient-to-r from-blue-500 via-blue-600 to-blue-500 animate-pulse"
           style={{
