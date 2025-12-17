@@ -329,10 +329,15 @@ export async function registerRoutes(
   // Create log entry
   app.post("/api/logs", requireAuth, async (req, res) => {
     try {
-      const validatedData = insertLogEntrySchema.parse({
+      // Convert date strings to Date objects
+      const body = {
         ...req.body,
         createdBy: req.session.userId,
-      });
+        startTime: req.body.startTime ? new Date(req.body.startTime) : undefined,
+        endTime: req.body.endTime ? new Date(req.body.endTime) : undefined,
+      };
+      
+      const validatedData = insertLogEntrySchema.parse(body);
       
       const log = await storage.createLogEntry(validatedData);
 
@@ -363,7 +368,14 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Log entry not found" });
       }
 
-      const updates = insertLogEntrySchema.partial().parse(req.body);
+      // Convert date strings to Date objects if provided
+      const body = {
+        ...req.body,
+        startTime: req.body.startTime ? new Date(req.body.startTime) : undefined,
+        endTime: req.body.endTime ? new Date(req.body.endTime) : undefined,
+      };
+      
+      const updates = insertLogEntrySchema.partial().parse(body);
       const log = await storage.updateLogEntry(req.params.id, updates);
 
       await logAudit(
