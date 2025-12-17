@@ -73,7 +73,7 @@ interface SystemConfig {
 }
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { user, logout } = useAuth();
   const { toast } = useToast();
   
@@ -270,29 +270,28 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         )}
         <nav className="flex flex-col gap-1">
           {filteredNavItems.map((item) => {
-            const navLink = (
-              <Link 
-                key={item.href} 
-                href={item.href}
-                className={cn(
-                  "flex items-center rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer select-none",
-                  collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
-                  location === item.href
-                    ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-600/25"
-                    : "text-slate-400 hover:bg-slate-800/70 hover:text-slate-100"
-                )}
-                data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
-              >
-                <item.icon className={cn("flex-shrink-0 pointer-events-none", collapsed ? "h-5 w-5" : "h-4 w-4")} />
-                {!collapsed && <span className="pointer-events-none">{item.label}</span>}
-              </Link>
-            );
-
+            const isActive = location === item.href;
+            
             if (collapsed) {
               return (
-                <Tooltip key={item.href} delayDuration={300}>
+                <Tooltip key={item.href} delayDuration={0}>
                   <TooltipTrigger asChild>
-                    {navLink}
+                    <a
+                      href={item.href}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setLocation(item.href);
+                      }}
+                      className={cn(
+                        "flex items-center justify-center rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer select-none w-full p-2.5",
+                        isActive
+                          ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-600/25"
+                          : "text-slate-400 hover:bg-slate-800/70 hover:text-slate-100"
+                      )}
+                      data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                    >
+                      <item.icon className="flex-shrink-0 h-5 w-5" />
+                    </a>
                   </TooltipTrigger>
                   <TooltipContent side="right" className="bg-slate-800 text-white border-slate-700">
                     {item.label}
@@ -301,7 +300,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               );
             }
             
-            return navLink;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer select-none w-full",
+                  isActive
+                    ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-600/25"
+                    : "text-slate-400 hover:bg-slate-800/70 hover:text-slate-100"
+                )}
+                data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+              >
+                <item.icon className="flex-shrink-0 h-4 w-4" />
+                <span>{item.label}</span>
+              </Link>
+            );
           })}
         </nav>
       </div>
