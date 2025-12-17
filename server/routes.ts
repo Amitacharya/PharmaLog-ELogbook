@@ -344,29 +344,35 @@ export async function registerRoutes(
     }
   });
 
-  // Submit log entry (with electronic signature)
+  // Submit log entry (with electronic signature - 21 CFR Part 11 compliant)
   app.post("/api/logs/:id/submit", requireAuth, async (req, res) => {
     try {
-      const { username, password, reason } = req.body;
+      const { password, reason } = req.body;
 
-      if (!username || !password || !reason) {
-        return res.status(400).json({ error: "Username, password, and reason required for submission" });
+      if (!password || !reason) {
+        return res.status(400).json({ error: "Password and reason required for submission" });
       }
 
-      // Verify electronic signature
-      const user = await storage.getUserByUsername(username);
-      if (!user) {
-        return res.status(401).json({ error: "Invalid signature credentials" });
+      // Get the current session user
+      const sessionUser = await storage.getUser(req.session.userId!);
+      if (!sessionUser) {
+        return res.status(401).json({ error: "Session user not found" });
       }
 
-      const validPassword = await bcrypt.compare(password, user.password);
+      // Verify password for the logged-in user (re-authentication)
+      const validPassword = await bcrypt.compare(password, sessionUser.password);
       if (!validPassword) {
-        return res.status(401).json({ error: "Invalid signature credentials" });
+        return res.status(401).json({ error: "Invalid password" });
       }
 
       const oldLog = await storage.getLogEntryById(req.params.id);
       if (!oldLog) {
         return res.status(404).json({ error: "Log entry not found" });
+      }
+
+      // Verify the submitter is the creator of the log entry
+      if (oldLog.createdBy !== sessionUser.id) {
+        return res.status(403).json({ error: "Only the entry creator can submit this log" });
       }
 
       const log = await storage.updateLogEntry(req.params.id, {
@@ -375,7 +381,7 @@ export async function registerRoutes(
       });
 
       await logAudit(
-        user.id,
+        sessionUser.id,
         "UPDATE",
         "LogEntry",
         log!.id,
@@ -391,28 +397,30 @@ export async function registerRoutes(
     }
   });
 
-  // Approve log entry (with electronic signature)
+  // Approve log entry (with electronic signature - 21 CFR Part 11 compliant)
   app.post("/api/logs/:id/approve", requireAuth, async (req, res) => {
     try {
-      const { username, password, reason } = req.body;
+      const { password, reason } = req.body;
 
-      if (!username || !password || !reason) {
-        return res.status(400).json({ error: "Username, password, and reason required for approval" });
+      if (!password || !reason) {
+        return res.status(400).json({ error: "Password and reason required for approval" });
       }
 
-      // Verify electronic signature - must be QA or Admin
-      const user = await storage.getUserByUsername(username);
-      if (!user) {
-        return res.status(401).json({ error: "Invalid signature credentials" });
+      // Get the current session user
+      const sessionUser = await storage.getUser(req.session.userId!);
+      if (!sessionUser) {
+        return res.status(401).json({ error: "Session user not found" });
       }
 
-      if (user.role !== "QA" && user.role !== "Admin") {
+      // Verify approver has proper role
+      if (sessionUser.role !== "QA" && sessionUser.role !== "Admin") {
         return res.status(403).json({ error: "Only QA or Admin can approve log entries" });
       }
 
-      const validPassword = await bcrypt.compare(password, user.password);
+      // Verify password for the logged-in user (re-authentication)
+      const validPassword = await bcrypt.compare(password, sessionUser.password);
       if (!validPassword) {
-        return res.status(401).json({ error: "Invalid signature credentials" });
+        return res.status(401).json({ error: "Invalid password" });
       }
 
       const oldLog = await storage.getLogEntryById(req.params.id);
@@ -420,10 +428,15 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Log entry not found" });
       }
 
-      const log = await storage.approveLogEntry(req.params.id, user.id);
+      // Dual control: approver must be different from submitter
+      if (oldLog.createdBy === sessionUser.id) {
+        return res.status(403).json({ error: "You cannot approve your own log entry (dual control required)" });
+      }
+
+      const log = await storage.approveLogEntry(req.params.id, sessionUser.id);
 
       await logAudit(
-        user.id,
+        sessionUser.id,
         "APPROVE",
         "LogEntry",
         log!.id,

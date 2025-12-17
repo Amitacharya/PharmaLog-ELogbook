@@ -192,19 +192,17 @@ export function useSubmitLogEntry() {
   return useMutation({
     mutationFn: async ({
       id,
-      username,
       password,
       reason,
     }: {
       id: string;
-      username: string;
       password: string;
       reason: string;
     }) => {
       const response = await fetch(`/api/logs/${id}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, reason }),
+        body: JSON.stringify({ password, reason }),
         credentials: "include",
       });
       if (!response.ok) {
@@ -225,19 +223,17 @@ export function useApproveLogEntry() {
   return useMutation({
     mutationFn: async ({
       id,
-      username,
       password,
       reason,
     }: {
       id: string;
-      username: string;
       password: string;
       reason: string;
     }) => {
       const response = await fetch(`/api/logs/${id}/approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, reason }),
+        body: JSON.stringify({ password, reason }),
         credentials: "include",
       });
       if (!response.ok) {

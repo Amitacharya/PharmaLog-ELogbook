@@ -39,7 +39,6 @@ export default function LogEntry() {
   });
 
   const [signatureData, setSignatureData] = useState({
-    username: "",
     password: "",
     reason: ""
   });
@@ -58,12 +57,23 @@ export default function LogEntry() {
       return;
     }
 
+    // Convert time strings to full timestamps
+    const today = new Date();
+    const [startHour, startMin] = formData.startTime.split(':').map(Number);
+    const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), startHour, startMin);
+    
+    let endDate: Date | undefined;
+    if (formData.endTime) {
+      const [endHour, endMin] = formData.endTime.split(':').map(Number);
+      endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), endHour, endMin);
+    }
+
     try {
       const logEntry = await createLogEntry.mutateAsync({
         equipmentId: formData.equipmentId,
         activityType: formData.activityType as any,
-        startTime: new Date().toISOString(),
-        endTime: formData.endTime ? new Date().toISOString() : undefined,
+        startTime: startDate.toISOString(),
+        endTime: endDate?.toISOString(),
         description: formData.description,
         batchNumber: formData.batchNumber || undefined,
         readings: formData.readings || undefined,
@@ -91,7 +101,6 @@ export default function LogEntry() {
       if (signAction === "submit") {
         await submitLogEntry.mutateAsync({
           id: selectedLogId,
-          username: signatureData.username,
           password: signatureData.password,
           reason: signatureData.reason
         });
@@ -102,7 +111,6 @@ export default function LogEntry() {
       } else {
         await approveLogEntry.mutateAsync({
           id: selectedLogId,
-          username: signatureData.username,
           password: signatureData.password,
           reason: signatureData.reason
         });
@@ -122,7 +130,7 @@ export default function LogEntry() {
         batchNumber: "",
         readings: ""
       });
-      setSignatureData({ username: "", password: "", reason: "" });
+      setSignatureData({ password: "", reason: "" });
       setSelectedLogId(null);
     } catch (error: any) {
       toast({
@@ -364,15 +372,8 @@ export default function LogEntry() {
           </DialogHeader>
           <form onSubmit={handleSign}>
             <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="username">Username</Label>
-                <Input 
-                  id="username" 
-                  value={signatureData.username}
-                  onChange={(e) => setSignatureData(prev => ({ ...prev, username: e.target.value }))}
-                  required
-                  data-testid="input-signature-username"
-                />
+              <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-800 border border-blue-200">
+                Signing as: <strong>{user?.fullName}</strong> ({user?.username})
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
@@ -382,6 +383,7 @@ export default function LogEntry() {
                   value={signatureData.password}
                   onChange={(e) => setSignatureData(prev => ({ ...prev, password: e.target.value }))}
                   required
+                  placeholder="Re-enter your password to sign"
                   data-testid="input-signature-password"
                 />
               </div>
