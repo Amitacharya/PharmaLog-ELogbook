@@ -1,63 +1,89 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Download, Filter } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const audits = [
-  { id: "AUD-9920", timestamp: "2024-03-17 14:32:01", user: "John Doe", action: "Login", details: "Successful login from IP 192.168.1.42" },
-  { id: "AUD-9921", timestamp: "2024-03-17 14:35:12", user: "John Doe", action: "Create Log", details: "Created log entry #LOG-2024-890 for Bioreactor B-204" },
-  { id: "AUD-9922", timestamp: "2024-03-17 15:10:05", user: "Sarah King", action: "Review Log", details: "Reviewed and signed off log #LOG-2024-889" },
-  { id: "AUD-9923", timestamp: "2024-03-17 15:45:33", user: "System", action: "Backup", details: "Automated hourly database backup completed" },
-  { id: "AUD-9924", timestamp: "2024-03-17 16:00:00", user: "Mike Ross", action: "Update Status", details: "Changed status of Autoclave A-01 to 'In Use'" },
-  { id: "AUD-9925", timestamp: "2024-03-17 16:15:22", user: "John Doe", action: "Logout", details: "User logged out manually" },
-  { id: "AUD-9926", timestamp: "2024-03-17 09:12:01", user: "Admin", action: "User Config", details: "Updated permissions for user group 'Operators'" },
+  { id: "AUD-10045", timestamp: "2024-03-17 14:32:01", user: "John Doe", role: "Operator", action: "CREATE", entity: "Log Entry", oldValue: "-", newValue: "ID: LOG-1001" },
+  { id: "AUD-10044", timestamp: "2024-03-17 14:30:15", user: "John Doe", role: "Operator", action: "LOGIN", entity: "Session", oldValue: "-", newValue: "Success" },
+  { id: "AUD-10043", timestamp: "2024-03-17 12:15:00", user: "Sarah King", role: "QA", action: "APPROVE", entity: "Log Entry", oldValue: "Submitted", newValue: "Approved" },
+  { id: "AUD-10042", timestamp: "2024-03-17 11:45:22", user: "Mike Ross", role: "Supervisor", action: "UPDATE", entity: "Equipment", oldValue: "Status: Active", newValue: "Status: Maintenance" },
+  { id: "AUD-10041", timestamp: "2024-03-17 09:00:05", user: "System", role: "Admin", action: "BACKUP", entity: "Database", oldValue: "-", newValue: "Backup_17032024.bak" },
 ];
 
 export default function AuditTrail() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col space-y-2">
-        <h2 className="text-2xl font-bold tracking-tight">Audit Trail</h2>
-        <p className="text-muted-foreground">Complete immutable history of all system actions for 21 CFR Part 11 compliance.</p>
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900">Audit Trail</h2>
+        <p className="text-slate-500">Secure, immutable record of all system activities (21 CFR Part 11).</p>
       </div>
 
-      <Card>
-        <CardHeader>
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle>System Events</CardTitle>
-            <div className="relative w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search audit logs..."
-                className="pl-9"
-              />
+            <div className="flex gap-2">
+              <div className="relative w-64">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                <Input
+                  type="search"
+                  placeholder="Search audit logs..."
+                  className="pl-9 h-9"
+                />
+              </div>
+              <Button variant="outline" size="sm" className="h-9">
+                <Filter className="mr-2 h-3 w-3" />
+                Filter
+              </Button>
             </div>
+            <Button variant="outline" size="sm" className="h-9">
+              <Download className="mr-2 h-3 w-3" />
+              Export Report
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-slate-50">
               <TableRow>
-                <TableHead className="w-[180px]">Timestamp</TableHead>
-                <TableHead className="w-[120px]">User</TableHead>
-                <TableHead className="w-[120px]">Action</TableHead>
-                <TableHead>Details</TableHead>
-                <TableHead className="w-[100px] text-right">Audit ID</TableHead>
+                <TableHead className="w-[160px]">Timestamp (UTC)</TableHead>
+                <TableHead className="w-[140px]">User / Role</TableHead>
+                <TableHead className="w-[100px]">Action</TableHead>
+                <TableHead className="w-[140px]">Entity</TableHead>
+                <TableHead className="hidden md:table-cell">Old Value</TableHead>
+                <TableHead className="hidden md:table-cell">New Value</TableHead>
+                <TableHead className="text-right">Audit ID</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {audits.map((item) => (
-                <TableRow key={item.id} className="group">
-                  <TableCell className="font-mono text-xs text-muted-foreground">{item.timestamp}</TableCell>
-                  <TableCell className="font-medium">{item.user}</TableCell>
+                <TableRow key={item.id} className="hover:bg-slate-50/50">
+                  <TableCell className="font-mono text-xs text-slate-600">{item.timestamp}</TableCell>
                   <TableCell>
-                    <span className="inline-flex items-center rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground ring-1 ring-inset ring-gray-500/10">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">{item.user}</span>
+                      <span className="text-xs text-slate-500">{item.role}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-bold ring-1 ring-inset ${
+                      item.action === 'CREATE' ? 'bg-green-50 text-green-700 ring-green-600/20' :
+                      item.action === 'UPDATE' ? 'bg-blue-50 text-blue-700 ring-blue-600/20' :
+                      item.action === 'DELETE' ? 'bg-red-50 text-red-700 ring-red-600/20' :
+                      'bg-slate-50 text-slate-700 ring-slate-600/20'
+                    }`}>
                       {item.action}
                     </span>
                   </TableCell>
-                  <TableCell className="text-sm">{item.details}</TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground text-right">{item.id}</TableCell>
+                  <TableCell className="text-sm text-slate-700">{item.entity}</TableCell>
+                  <TableCell className="hidden md:table-cell text-xs font-mono text-slate-500 truncate max-w-[150px]" title={item.oldValue}>
+                    {item.oldValue}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell text-xs font-mono text-slate-900 truncate max-w-[150px]" title={item.newValue}>
+                    {item.newValue}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-slate-400 text-right">{item.id}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
