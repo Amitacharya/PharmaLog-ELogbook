@@ -1,18 +1,41 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, Download, Filter } from "lucide-react";
+import { Search, Download, Filter, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const audits = [
-  { id: "AUD-10045", timestamp: "2024-03-17 14:32:01", user: "John Doe", role: "Operator", action: "CREATE", entity: "Log Entry", oldValue: "-", newValue: "ID: LOG-1001" },
-  { id: "AUD-10044", timestamp: "2024-03-17 14:30:15", user: "John Doe", role: "Operator", action: "LOGIN", entity: "Session", oldValue: "-", newValue: "Success" },
-  { id: "AUD-10043", timestamp: "2024-03-17 12:15:00", user: "Sarah King", role: "QA", action: "APPROVE", entity: "Log Entry", oldValue: "Submitted", newValue: "Approved" },
-  { id: "AUD-10042", timestamp: "2024-03-17 11:45:22", user: "Mike Ross", role: "Supervisor", action: "UPDATE", entity: "Equipment", oldValue: "Status: Active", newValue: "Status: Maintenance" },
-  { id: "AUD-10041", timestamp: "2024-03-17 09:00:05", user: "System", role: "Admin", action: "BACKUP", entity: "Database", oldValue: "-", newValue: "Backup_17032024.bak" },
-];
+import { useAuditLogs } from "@/lib/api";
+import { Spinner } from "@/components/ui/spinner";
+import { useState } from "react";
 
 export default function AuditTrail() {
+  const { data: audits, isLoading, isError } = useAuditLogs(200);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredAudits = audits?.filter(item =>
+    item.userId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.entityType.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Spinner className="h-8 w-8" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <AlertTriangle className="h-12 w-12 text-rose-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-900">Error Loading Audit Trail</h3>
+          <p className="text-slate-500">Failed to load audit logs. Please try again.</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       <div className="flex flex-col space-y-2">
@@ -30,6 +53,9 @@ export default function AuditTrail() {
                   type="search"
                   placeholder="Search audit logs..."
                   className="pl-9 h-9"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  data-testid="input-search-audit"
                 />
               </div>
               <Button variant="outline" size="sm" className="h-9">
@@ -57,35 +83,45 @@ export default function AuditTrail() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {audits.map((item) => (
-                <TableRow key={item.id} className="hover:bg-slate-50/50">
-                  <TableCell className="font-mono text-xs text-slate-600">{item.timestamp}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium">{item.user}</span>
-                      <span className="text-xs text-slate-500">{item.role}</span>
-                    </div>
+              {filteredAudits.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-slate-500">
+                    {searchTerm ? "No audit logs found matching your search." : "No audit logs available."}
                   </TableCell>
-                  <TableCell>
-                    <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-bold ring-1 ring-inset ${
-                      item.action === 'CREATE' ? 'bg-green-50 text-green-700 ring-green-600/20' :
-                      item.action === 'UPDATE' ? 'bg-blue-50 text-blue-700 ring-blue-600/20' :
-                      item.action === 'DELETE' ? 'bg-red-50 text-red-700 ring-red-600/20' :
-                      'bg-slate-50 text-slate-700 ring-slate-600/20'
-                    }`}>
-                      {item.action}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm text-slate-700">{item.entity}</TableCell>
-                  <TableCell className="hidden md:table-cell text-xs font-mono text-slate-500 truncate max-w-[150px]" title={item.oldValue}>
-                    {item.oldValue}
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell text-xs font-mono text-slate-900 truncate max-w-[150px]" title={item.newValue}>
-                    {item.newValue}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-slate-400 text-right">{item.id}</TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                filteredAudits.map((item) => (
+                  <TableRow key={item.id} className="hover:bg-slate-50/50" data-testid={`row-audit-${item.id}`}>
+                    <TableCell className="font-mono text-xs text-slate-600">{new Date(item.timestamp).toLocaleString()}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{item.userId}</span>
+                        <span className="text-xs text-slate-500">User</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-bold ring-1 ring-inset ${
+                        item.action === 'CREATE' ? 'bg-green-50 text-green-700 ring-green-600/20' :
+                        item.action === 'UPDATE' ? 'bg-blue-50 text-blue-700 ring-blue-600/20' :
+                        item.action === 'DELETE' ? 'bg-red-50 text-red-700 ring-red-600/20' :
+                        item.action === 'APPROVE' ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' :
+                        item.action === 'REJECT' ? 'bg-rose-50 text-rose-700 ring-rose-600/20' :
+                        'bg-slate-50 text-slate-700 ring-slate-600/20'
+                      }`} data-testid={`badge-action-${item.action}`}>
+                        {item.action}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm text-slate-700">{item.entityType}</TableCell>
+                    <TableCell className="hidden md:table-cell text-xs font-mono text-slate-500 truncate max-w-[150px]" title={item.oldValue || "-"}>
+                      {item.oldValue || "-"}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell text-xs font-mono text-slate-900 truncate max-w-[150px]" title={item.newValue || "-"}>
+                      {item.newValue || "-"}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-slate-400 text-right">{item.id}</TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

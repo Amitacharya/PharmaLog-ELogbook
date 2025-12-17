@@ -3,17 +3,32 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, MoreVertical, Shield } from "lucide-react";
-
-const users = [
-  { id: "USR-001", name: "John Doe", role: "Operator", dept: "Production", status: "Active", lastLogin: "Today, 08:00" },
-  { id: "USR-002", name: "Sarah King", role: "QA Manager", dept: "Quality", status: "Active", lastLogin: "Today, 09:15" },
-  { id: "USR-003", name: "Mike Ross", role: "Supervisor", dept: "Production", status: "Active", lastLogin: "Yesterday" },
-  { id: "USR-004", name: "David Lee", role: "Operator", dept: "Packaging", status: "Locked", lastLogin: "3 days ago" },
-  { id: "USR-005", name: "Admin System", role: "Administrator", dept: "IT", status: "Active", lastLogin: "Today, 07:00" },
-];
+import { Plus, MoreVertical, Shield, AlertTriangle } from "lucide-react";
+import { useUsers } from "@/lib/api";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function UserManagement() {
+  const { data: users, isLoading, isError } = useUsers();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Spinner className="h-8 w-8" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <AlertTriangle className="h-12 w-12 text-rose-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-900">Error Loading Users</h3>
+          <p className="text-slate-500">Failed to load user data. Please try again.</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -30,7 +45,7 @@ export default function UserManagement() {
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle>System Users</CardTitle>
-          <CardDescription>Total 42 registered users</CardDescription>
+          <CardDescription>Total {users?.length || 0} registered users</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -40,46 +55,54 @@ export default function UserManagement() {
                 <TableHead>Role</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Last Login</TableHead>
+                <TableHead>Created</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback>{user.name.substring(0,2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-sm">{user.name}</span>
-                        <span className="text-xs text-slate-500">{user.id}</span>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-3 w-3 text-slate-400" />
-                      <span>{user.role}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{user.dept}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className={
-                      user.status === "Active" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100" : "bg-slate-100 text-slate-600"
-                    }>
-                      {user.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-slate-500">{user.lastLogin}</TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreVertical className="h-4 w-4 text-slate-400" />
-                    </Button>
+              {users && users.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-slate-500">
+                    No users available.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                users?.map((user) => (
+                  <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback>{user.fullName.substring(0,2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-sm">{user.fullName}</span>
+                          <span className="text-xs text-slate-500">{user.username}</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-3 w-3 text-slate-400" />
+                        <span>{user.role}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{user.department || "-"}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className={
+                        user.isActive ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100" : "bg-slate-100 text-slate-600"
+                      }>
+                        {user.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-slate-500">{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" data-testid={`button-user-actions-${user.id}`}>
+                        <MoreVertical className="h-4 w-4 text-slate-400" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

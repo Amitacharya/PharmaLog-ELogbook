@@ -1,10 +1,30 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, Filter, Calendar } from "lucide-react";
+import { FileText, Download, Filter, Calendar, AlertTriangle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useLogEntries, useAuditLogs } from "@/lib/api";
+import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/hooks/use-toast";
 
 export default function Reports() {
+  const { data: logs, isLoading: logsLoading } = useLogEntries();
+  const { data: audits, isLoading: auditsLoading } = useAuditLogs();
+
+  const handleGenerateReport = (reportType: string) => {
+    toast({
+      title: "Report Generation Started",
+      description: `Generating ${reportType} report. This may take a few moments.`,
+    });
+  };
+
+  if (logsLoading || auditsLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Spinner className="h-8 w-8" />
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
@@ -19,10 +39,10 @@ export default function Reports() {
               <FileText className="h-6 w-6" />
             </div>
             <CardTitle>Equipment Log Report</CardTitle>
-            <CardDescription>Detailed history of all activities for specific equipment over a selected period.</CardDescription>
+            <CardDescription>Detailed history of all activities for specific equipment over a selected period. ({logs?.length || 0} logs available)</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full">Generate Report</Button>
+            <Button variant="outline" className="w-full" onClick={() => handleGenerateReport("Equipment Log")} data-testid="button-generate-equipment-report">Generate Report</Button>
           </CardContent>
         </Card>
 
@@ -32,10 +52,10 @@ export default function Reports() {
               <FileText className="h-6 w-6" />
             </div>
             <CardTitle>User Activity Report</CardTitle>
-            <CardDescription>Audit of all actions performed by specific users or roles.</CardDescription>
+            <CardDescription>Audit of all actions performed by specific users or roles. ({audits?.length || 0} audit records available)</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full">Generate Report</Button>
+            <Button variant="outline" className="w-full" onClick={() => handleGenerateReport("User Activity")} data-testid="button-generate-user-report">Generate Report</Button>
           </CardContent>
         </Card>
 
@@ -48,7 +68,7 @@ export default function Reports() {
             <CardDescription>Summary of preventive maintenance execution vs schedule.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full">Generate Report</Button>
+            <Button variant="outline" className="w-full" onClick={() => handleGenerateReport("PM Compliance")} data-testid="button-generate-pm-report">Generate Report</Button>
           </CardContent>
         </Card>
       </div>

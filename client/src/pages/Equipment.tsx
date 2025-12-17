@@ -3,19 +3,61 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Filter, MoreHorizontal, Plus, FileSpreadsheet, Search } from "lucide-react";
+import { Filter, MoreHorizontal, Plus, FileSpreadsheet, Search, AlertTriangle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-
-const equipmentList = [
-  { id: "EQ-BIO-001", name: "Bioreactor 200L", type: "Upstream", area: "Suite A", serial: "SN-99821", qual: "Qualified", pmFreq: "Monthly", nextPm: "2024-04-15" },
-  { id: "EQ-AUT-002", name: "Autoclave Sterilizer", type: "Sterilization", area: "Wash Room", serial: "SN-11202", qual: "Qualified", pmFreq: "Weekly", nextPm: "2024-03-20" },
-  { id: "EQ-HPL-003", name: "HPLC System Agilent", type: "Analytical", area: "QC Lab", serial: "SN-77621", qual: "Re-Qual Required", pmFreq: "Quarterly", nextPm: "2024-02-28" },
-  { id: "EQ-CEN-004", name: "Centrifuge High-Speed", type: "Downstream", area: "Suite B", serial: "SN-33211", qual: "Qualified", pmFreq: "Monthly", nextPm: "2024-03-25" },
-  { id: "EQ-FIL-005", name: "Filling Machine", type: "Fill Finish", area: "Clean Room", serial: "SN-88219", qual: "Qualified", pmFreq: "Bi-Weekly", nextPm: "2024-03-18" },
-];
+import { useEquipment, useDeleteEquipment } from "@/lib/api";
+import { Spinner } from "@/components/ui/spinner";
+import { toast } from "@/hooks/use-toast";
 
 export default function EquipmentMaster() {
+  const { data: equipmentList, isLoading, isError } = useEquipment();
+  const deleteEquipment = useDeleteEquipment();
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to decommission this equipment?")) return;
+    
+    try {
+      await deleteEquipment.mutateAsync(id);
+      toast({
+        title: "Equipment Decommissioned",
+        description: "Equipment has been successfully removed from the system.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to decommission equipment. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const filteredEquipment = equipmentList?.filter(item => 
+    item.equipmentId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.serialNumber?.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Spinner className="h-8 w-8" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <AlertTriangle className="h-12 w-12 text-rose-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-900">Error Loading Equipment</h3>
+          <p className="text-slate-500">Failed to load equipment data. Please try again.</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -45,6 +87,9 @@ export default function EquipmentMaster() {
                 type="search"
                 placeholder="Search by ID, Name or Serial..."
                 className="pl-9 h-9 bg-slate-50"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                data-testid="input-search-equipment"
               />
             </div>
           </div>
@@ -65,46 +110,56 @@ export default function EquipmentMaster() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {equipmentList.map((item) => (
-                <TableRow key={item.id} className="hover:bg-slate-50/50">
-                  <TableCell className="font-mono text-xs font-medium text-slate-700">{item.id}</TableCell>
-                  <TableCell className="font-medium text-slate-900">{item.name}</TableCell>
-                  <TableCell className="text-slate-600">{item.type}</TableCell>
-                  <TableCell className="text-slate-600">{item.area}</TableCell>
-                  <TableCell className="font-mono text-xs text-slate-500">{item.serial}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={
-                      item.qual === "Qualified" 
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
-                        : "bg-amber-50 text-amber-700 border-amber-200"
-                    }>
-                      {item.qual}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-slate-600 text-xs">{item.pmFreq}</TableCell>
-                  <TableCell className={
-                    new Date(item.nextPm) < new Date() ? "text-rose-600 font-medium" : "text-slate-600"
-                  }>
-                    {item.nextPm}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4 text-slate-500" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View Details</DropdownMenuItem>
-                        <DropdownMenuItem>View Logs</DropdownMenuItem>
-                        <DropdownMenuItem>PM Schedule</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-rose-600">Decommission</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {filteredEquipment.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-8 text-slate-500">
+                    {searchTerm ? "No equipment found matching your search." : "No equipment available."}
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                filteredEquipment.map((item) => (
+                  <TableRow key={item.id} className="hover:bg-slate-50/50" data-testid={`row-equipment-${item.id}`}>
+                    <TableCell className="font-mono text-xs font-medium text-slate-700" data-testid={`text-equipment-id-${item.id}`}>{item.equipmentId}</TableCell>
+                    <TableCell className="font-medium text-slate-900">{item.name}</TableCell>
+                    <TableCell className="text-slate-600">{item.type}</TableCell>
+                    <TableCell className="text-slate-600">{item.location}</TableCell>
+                    <TableCell className="font-mono text-xs text-slate-500">{item.serialNumber || "-"}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={
+                        item.qualificationStatus === "Qualified" 
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                          : "bg-amber-50 text-amber-700 border-amber-200"
+                      }>
+                        {item.qualificationStatus || "Pending"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-slate-600 text-xs">{item.pmFrequency || "-"}</TableCell>
+                    <TableCell className="text-slate-600">-</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" data-testid={`button-actions-${item.id}`}>
+                            <MoreHorizontal className="h-4 w-4 text-slate-500" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>View Details</DropdownMenuItem>
+                          <DropdownMenuItem>View Logs</DropdownMenuItem>
+                          <DropdownMenuItem>PM Schedule</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            className="text-rose-600" 
+                            onClick={() => handleDelete(item.id)}
+                            data-testid={`button-delete-${item.id}`}
+                          >
+                            Decommission
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

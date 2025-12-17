@@ -26,13 +26,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/lib/auth";
 import logo from "@assets/generated_images/minimalist_pharma_logo_symbol.png";
 
 const navItems = [
@@ -47,18 +45,14 @@ const navItems = [
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const [role, setRole] = useState("Operator");
+  const { user, logout } = useAuth();
 
-  // Persist role for demo purposes
-  useEffect(() => {
-    const savedRole = localStorage.getItem("demo-role");
-    if (savedRole) setRole(savedRole);
-  }, []);
-
-  const handleRoleChange = (newRole: string) => {
-    setRole(newRole);
-    localStorage.setItem("demo-role", newRole);
-    window.location.reload(); // Simple reload to "refresh" permissions view
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase();
   };
 
   const SidebarContent = () => (
@@ -99,13 +93,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-3 rounded-lg bg-slate-800/50 p-3 ring-1 ring-slate-700">
           <Avatar className="h-9 w-9 border border-slate-600">
             <AvatarImage src="/placeholder-user.jpg" />
-            <AvatarFallback className="bg-slate-700 text-slate-300">JD</AvatarFallback>
+            <AvatarFallback className="bg-slate-700 text-slate-300">
+              {user ? getInitials(user.fullName) : "U"}
+            </AvatarFallback>
           </Avatar>
           <div className="flex flex-col overflow-hidden">
-            <span className="truncate text-sm font-medium text-slate-200">John Doe</span>
+            <span className="truncate text-sm font-medium text-slate-200">
+              {user?.fullName || "User"}
+            </span>
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="h-3 w-3 text-emerald-500" />
-              <span className="truncate text-xs text-slate-400">{role}</span>
+              <span className="truncate text-xs text-slate-400">{user?.role || "User"}</span>
             </div>
           </div>
         </div>
@@ -157,28 +155,35 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
+                <Button variant="outline" size="sm" className="gap-2" data-testid="button-user-menu">
                   <User className="h-4 w-4" />
-                  <span className="hidden sm:inline">Switch Role ({role})</span>
+                  <span className="hidden sm:inline">{user?.username}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Simulate User Role</DropdownMenuLabel>
+                <DropdownMenuLabel>Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuRadioGroup value={role} onValueChange={handleRoleChange}>
-                  <DropdownMenuRadioItem value="Operator">Operator</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="Supervisor">Supervisor</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="QA">Quality Assurance (QA)</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="Admin">System Admin</DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
+                <DropdownMenuItem className="text-xs text-slate-500">
+                  {user?.fullName}
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-xs text-slate-500">
+                  Role: {user?.role}
+                </DropdownMenuItem>
+                {user?.department && (
+                  <DropdownMenuItem className="text-xs text-slate-500">
+                    Department: {user.department}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout} data-testid="button-logout">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
             <Button variant="ghost" size="icon" className="text-slate-500 hover:text-slate-700">
               <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-slate-500 hover:text-slate-700">
-              <LogOut className="h-5 w-5" />
             </Button>
           </div>
         </header>

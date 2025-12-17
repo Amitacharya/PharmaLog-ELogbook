@@ -12,23 +12,97 @@ import {
 } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, BarChart, Bar } from "recharts";
 import { cn } from "@/lib/utils";
-
-const activityData = [
-  { time: "08:00", logs: 12 },
-  { time: "10:00", logs: 35 },
-  { time: "12:00", logs: 22 },
-  { time: "14:00", logs: 48 },
-  { time: "16:00", logs: 38 },
-  { time: "18:00", logs: 15 },
-];
-
-const pmStatusData = [
-  { name: "Compliant", value: 85 },
-  { name: "Due Soon", value: 10 },
-  { name: "Overdue", value: 5 },
-];
+import { useEquipment, useLogEntries, usePMSchedules } from "@/lib/api";
+import { Spinner } from "@/components/ui/spinner";
+import { useMemo } from "react";
 
 export default function Dashboard() {
+  const { data: equipment, isLoading: equipmentLoading, isError: equipmentError } = useEquipment();
+  const { data: logs, isLoading: logsLoading, isError: logsError } = useLogEntries();
+  const { data: pmSchedules, isLoading: pmLoading, isError: pmError } = usePMSchedules();
+
+  const stats = useMemo(() => {
+    if (!logs || !pmSchedules) return null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayLogs = logs.filter(log => {
+      const logDate = new Date(log.createdAt);
+      logDate.setHours(0, 0, 0, 0);
+      return logDate.getTime() === today.getTime();
+    });
+
+    const pendingApprovals = logs.filter(log => log.status === "Submitted").length;
+
+    const overduePM = pmSchedules.filter(schedule => {
+      const dueDate = new Date(schedule.nextDue);
+      return dueDate < new Date() && schedule.status !== "Completed";
+    }).length;
+
+    const activityByHour = Array.from({ length: 6 }, (_, i) => {
+      const hour = 8 + i * 2;
+      const count = logs.filter(log => {
+        const logHour = new Date(log.createdAt).getHours();
+        return logHour >= hour && logHour < hour + 2;
+      }).length;
+      return {
+        time: `${hour.toString().padStart(2, '0')}:00`,
+        logs: count
+      };
+    });
+
+    const totalSchedules = pmSchedules.length;
+    const compliantCount = pmSchedules.filter(schedule => {
+      const dueDate = new Date(schedule.nextDue);
+      const daysDiff = Math.ceil((dueDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+      return daysDiff > 7 || schedule.status === "Completed";
+    }).length;
+    const dueSoonCount = pmSchedules.filter(schedule => {
+      const dueDate = new Date(schedule.nextDue);
+      const daysDiff = Math.ceil((dueDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+      return daysDiff >= 0 && daysDiff <= 7 && schedule.status !== "Completed";
+    }).length;
+    const overdueCount = overduePM;
+
+    const compliantPercent = totalSchedules > 0 ? Math.round((compliantCount / totalSchedules) * 100) : 0;
+    const dueSoonPercent = totalSchedules > 0 ? Math.round((dueSoonCount / totalSchedules) * 100) : 0;
+    const overduePercent = totalSchedules > 0 ? Math.round((overdueCount / totalSchedules) * 100) : 0;
+
+    const approvedLogs = logs.filter(log => log.status === "Approved").length;
+    const complianceScore = logs.length > 0 ? ((approvedLogs / logs.length) * 100).toFixed(1) : "0.0";
+
+    return {
+      todayActivities: todayLogs.length,
+      pendingApprovals,
+      overduePM,
+      complianceScore,
+      activityByHour,
+      compliantPercent,
+      dueSoonPercent,
+      overduePercent
+    };
+  }, [logs, pmSchedules]);
+
+  if (equipmentLoading || logsLoading || pmLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Spinner className="h-8 w-8" />
+      </div>
+    );
+  }
+
+  if (equipmentError || logsError || pmError) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <AlertTriangle className="h-12 w-12 text-rose-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-slate-900">Error Loading Dashboard</h3>
+          <p className="text-slate-500">Failed to load dashboard data. Please try again.</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
@@ -43,10 +117,9 @@ export default function Dashboard() {
             <Activity className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">148</div>
+            <div className="text-2xl font-bold text-slate-900" data-testid="stat-today-activities">{stats?.todayActivities || 0}</div>
             <p className="text-xs text-slate-500 mt-1 flex items-center">
-              <ArrowUpRight className="h-3 w-3 text-emerald-500 mr-1" />
-              +12% vs avg
+              Today's log entries
             </p>
           </CardContent>
         </Card>
@@ -57,7 +130,7 @@ export default function Dashboard() {
             <Clock className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">12</div>
+            <div className="text-2xl font-bold text-slate-900" data-testid="stat-pending-approvals">{stats?.pendingApprovals || 0}</div>
             <p className="text-xs text-slate-500 mt-1">Requires Supervisor/QA</p>
           </CardContent>
         </Card>
@@ -68,7 +141,7 @@ export default function Dashboard() {
             <AlertOctagon className="h-4 w-4 text-rose-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-rose-600">3</div>
+            <div className="text-2xl font-bold text-rose-600" data-testid="stat-pm-overdue">{stats?.overduePM || 0}</div>
             <p className="text-xs text-slate-500 mt-1">Critical Attention Needed</p>
           </CardContent>
         </Card>
@@ -79,7 +152,7 @@ export default function Dashboard() {
             <FileCheck className="h-4 w-4 text-emerald-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-700">98.5%</div>
+            <div className="text-2xl font-bold text-emerald-700" data-testid="stat-compliance-score">{stats?.complianceScore || "0.0"}%</div>
             <p className="text-xs text-slate-500 mt-1">GAMP-5 Adherence</p>
           </CardContent>
         </Card>
@@ -94,7 +167,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="h-[240px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={activityData}>
+                <AreaChart data={stats?.activityByHour || []}>
                   <defs>
                     <linearGradient id="colorLogs" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
@@ -132,10 +205,10 @@ export default function Dashboard() {
                   <div className="h-3 w-3 rounded-full bg-emerald-500" />
                   <span className="text-sm font-medium">Compliant</span>
                 </div>
-                <span className="text-sm font-bold">85%</span>
+                <span className="text-sm font-bold" data-testid="pm-compliant-percent">{stats?.compliantPercent || 0}%</span>
               </div>
               <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full bg-emerald-500 w-[85%]" />
+                <div className="h-full bg-emerald-500" style={{ width: `${stats?.compliantPercent || 0}%` }} />
               </div>
 
               <div className="flex items-center justify-between">
@@ -143,10 +216,10 @@ export default function Dashboard() {
                   <div className="h-3 w-3 rounded-full bg-orange-400" />
                   <span className="text-sm font-medium">Due Soon</span>
                 </div>
-                <span className="text-sm font-bold">10%</span>
+                <span className="text-sm font-bold" data-testid="pm-due-soon-percent">{stats?.dueSoonPercent || 0}%</span>
               </div>
               <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full bg-orange-400 w-[10%]" />
+                <div className="h-full bg-orange-400" style={{ width: `${stats?.dueSoonPercent || 0}%` }} />
               </div>
 
               <div className="flex items-center justify-between">
@@ -154,10 +227,10 @@ export default function Dashboard() {
                   <div className="h-3 w-3 rounded-full bg-rose-500" />
                   <span className="text-sm font-medium">Overdue</span>
                 </div>
-                <span className="text-sm font-bold">5%</span>
+                <span className="text-sm font-bold" data-testid="pm-overdue-percent">{stats?.overduePercent || 0}%</span>
               </div>
               <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full bg-rose-500 w-[5%]" />
+                <div className="h-full bg-rose-500" style={{ width: `${stats?.overduePercent || 0}%` }} />
               </div>
             </div>
           </CardContent>

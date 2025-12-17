@@ -46,7 +46,7 @@ export interface IStorage {
   getAllLogEntries(): Promise<LogEntry[]>;
   getLogEntryById(id: string): Promise<LogEntry | undefined>;
   createLogEntry(log: InsertLogEntry): Promise<LogEntry>;
-  updateLogEntry(id: string, updates: Partial<InsertLogEntry>): Promise<LogEntry | undefined>;
+  updateLogEntry(id: string, updates: Partial<Omit<LogEntry, 'id' | 'logId' | 'createdAt'>>): Promise<LogEntry | undefined>;
   approveLogEntry(id: string, approverId: string): Promise<LogEntry | undefined>;
 
   // Audit Trail operations
@@ -137,8 +137,8 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async updateLogEntry(id: string, updates: Partial<InsertLogEntry>): Promise<LogEntry | undefined> {
-    const result = await db.update(logEntries).set(updates).where(eq(logEntries.id, id)).returning();
+  async updateLogEntry(id: string, updates: Partial<Omit<LogEntry, 'id' | 'logId' | 'createdAt'>>): Promise<LogEntry | undefined> {
+    const result = await db.update(logEntries).set(updates as any).where(eq(logEntries.id, id)).returning();
     return result[0];
   }
 
