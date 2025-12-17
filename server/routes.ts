@@ -155,6 +155,41 @@ export async function registerRoutes(
     }
   });
 
+  // Change password
+  app.post("/api/auth/change-password", requireAuth, async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: "Current and new password required" });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      }
+
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const validPassword = await bcrypt.compare(currentPassword, user.password);
+      if (!validPassword) {
+        return res.status(401).json({ error: "Current password is incorrect" });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await storage.updateUser(user.id, { password: hashedPassword });
+
+      await logAudit(user.id, "UPDATE", "User", user.id, undefined, undefined, "Password changed");
+
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error("Change password error:", error);
+      res.status(500).json({ error: "Failed to change password" });
+    }
+  });
+
   // ===== EQUIPMENT ROUTES =====
 
   // Get all equipment
@@ -454,9 +489,15 @@ export async function registerRoutes(
 
   // ===== AUDIT TRAIL ROUTES =====
 
-  // Get audit logs
+  // Get audit logs (restricted to Admin, QA, Supervisor)
   app.get("/api/audit", requireAuth, async (req, res) => {
     try {
+      const currentUser = await storage.getUser(req.session.userId!);
+      const allowedRoles = ["Admin", "QA", "Supervisor"];
+      if (!currentUser || !allowedRoles.includes(currentUser.role)) {
+        return res.status(403).json({ error: "Access denied. Audit trail is restricted to Admin, QA, and Supervisor roles." });
+      }
+
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
       const logs = await storage.getAllAuditLogs(limit);
       res.json(logs);
@@ -534,9 +575,15 @@ export async function registerRoutes(
 
   // ===== USER MANAGEMENT ROUTES =====
 
-  // Get all users
+  // Get all users (restricted to Admin, QA)
   app.get("/api/users", requireAuth, async (req, res) => {
     try {
+      const currentUser = await storage.getUser(req.session.userId!);
+      const allowedRoles = ["Admin", "QA"];
+      if (!currentUser || !allowedRoles.includes(currentUser.role)) {
+        return res.status(403).json({ error: "Access denied. User management is restricted to Admin and QA roles." });
+      }
+
       const users = await storage.getAllUsers();
       // Don't send passwords
       const sanitized = users.map(({ password, ...user }) => user);
