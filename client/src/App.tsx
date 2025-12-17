@@ -37,24 +37,44 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   return <Component />;
 }
 
+function AppRoutes() {
+  return (
+    <AppLayout>
+      <Switch>
+        <Route path="/" component={Dashboard} />
+        <Route path="/logs" component={LogEntry} />
+        <Route path="/equipment" component={EquipmentMaster} />
+        <Route path="/pm" component={PreventiveMaintenance} />
+        <Route path="/reports" component={Reports} />
+        <Route path="/users" component={UserManagement} />
+        <Route path="/audit" component={AuditTrail} />
+        <Route component={NotFound} />
+      </Switch>
+    </AppLayout>
+  );
+}
+
 function Router() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-900"></div>
+          <p className="mt-2 text-sm text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Switch>
       <Route path="/login" component={Login} />
-      
       {user ? (
-        <AppLayout>
-          <Route path="/" component={Dashboard} />
-          <Route path="/logs" component={LogEntry} />
-          <Route path="/equipment" component={EquipmentMaster} />
-          <Route path="/pm" component={PreventiveMaintenance} />
-          <Route path="/reports" component={Reports} />
-          <Route path="/users" component={UserManagement} />
-          <Route path="/audit" component={AuditTrail} />
-          <Route component={NotFound} />
-        </AppLayout>
+        <Route>
+          <AppRoutes />
+        </Route>
       ) : (
         <Redirect to="/login" />
       )}
