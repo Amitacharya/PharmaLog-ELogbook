@@ -148,15 +148,45 @@ function loadEquipmentList() {
 function handleLogin(event) {
     event.preventDefault();
     const btn = event.target.querySelector('button[type="submit"]');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
     const originalText = btn.innerHTML;
     
+    // Reset previous error states
+    usernameInput.classList.remove('is-invalid');
+    passwordInput.classList.remove('is-invalid');
+
     btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Authenticating...';
     btn.disabled = true;
 
     // Simulate API delay
     setTimeout(() => {
-        window.location.href = '/Dashboard/Index';
-    }, 1500);
+        // Mock Credential Check
+        if (usernameInput.value === 'admin' && passwordInput.value === 'admin') {
+            // Success
+            sessionStorage.setItem('isLoggedIn', 'true');
+            sessionStorage.setItem('username', 'admin');
+            window.location.href = '/Dashboard/Index';
+        } else {
+            // Failure
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            
+            // Show error (visual feedback)
+            usernameInput.classList.add('is-invalid');
+            passwordInput.classList.add('is-invalid');
+            
+            // Optional: Create/Show an alert if one doesn't exist
+            let alertBox = document.getElementById('loginAlert');
+            if(!alertBox) {
+                const alertDiv = document.createElement('div');
+                alertDiv.id = 'loginAlert';
+                alertDiv.className = 'alert alert-danger mt-3 small';
+                alertDiv.innerHTML = '<i class="bi bi-exclamation-circle-fill"></i> Invalid username or password.';
+                event.target.appendChild(alertDiv);
+            }
+        }
+    }, 1000);
 }
 
 function handleFormSubmit(event, redirectUrl) {
