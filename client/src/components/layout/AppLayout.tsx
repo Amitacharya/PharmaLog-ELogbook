@@ -268,31 +268,40 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         )}
         <nav className="flex flex-col gap-1">
-          {filteredNavItems.map((item) => (
-            <Tooltip key={item.href} delayDuration={0}>
-              <TooltipTrigger asChild>
-                <Link href={item.href}>
-                  <div
-                    className={cn(
-                      "flex items-center rounded-lg text-sm font-medium transition-all duration-200",
-                      collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
-                      location === item.href
-                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-600/25"
-                        : "text-slate-400 hover:bg-slate-800/70 hover:text-slate-100"
-                    )}
-                  >
-                    <item.icon className={cn("flex-shrink-0", collapsed ? "h-5 w-5" : "h-4 w-4")} />
-                    {!collapsed && item.label}
-                  </div>
-                </Link>
-              </TooltipTrigger>
-              {collapsed && (
-                <TooltipContent side="right" className="bg-slate-800 text-white border-slate-700">
-                  {item.label}
-                </TooltipContent>
-              )}
-            </Tooltip>
-          ))}
+          {filteredNavItems.map((item) => {
+            const navLink = (
+              <Link 
+                key={item.href} 
+                href={item.href}
+                className={cn(
+                  "flex items-center rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer select-none",
+                  collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
+                  location === item.href
+                    ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-600/25"
+                    : "text-slate-400 hover:bg-slate-800/70 hover:text-slate-100"
+                )}
+                data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+              >
+                <item.icon className={cn("flex-shrink-0 pointer-events-none", collapsed ? "h-5 w-5" : "h-4 w-4")} />
+                {!collapsed && <span className="pointer-events-none">{item.label}</span>}
+              </Link>
+            );
+
+            if (collapsed) {
+              return (
+                <Tooltip key={item.href} delayDuration={300}>
+                  <TooltipTrigger asChild>
+                    {navLink}
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="bg-slate-800 text-white border-slate-700">
+                    {item.label}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            }
+            
+            return navLink;
+          })}
         </nav>
       </div>
 
