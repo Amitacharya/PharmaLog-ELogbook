@@ -18,8 +18,6 @@ import { useLocation } from "wouter";
 
 export default function EquipmentMaster() {
   const { data: equipmentList, isLoading, isError } = useEquipment();
-  const { data: allLogs } = useLogEntries();
-  const { data: pmSchedules } = usePMSchedules();
   const createEquipment = useCreateEquipment();
   const deleteEquipment = useDeleteEquipment();
   const [, setLocation] = useLocation();
@@ -28,6 +26,10 @@ export default function EquipmentMaster() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isLogsDialogOpen, setIsLogsDialogOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<any>(null);
+  
+  // Lazy load logs and PM schedules only when modals are open
+  const { data: allLogs, isLoading: isLoadingLogs } = useLogEntries();
+  const { data: pmSchedules } = usePMSchedules();
   
   const [formData, setFormData] = useState({
     equipmentId: "",

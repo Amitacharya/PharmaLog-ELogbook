@@ -43,6 +43,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
+import { RouteLoader } from "@/components/ui/route-loader";
 import logo from "@assets/generated_images/minimalist_pharma_logo_symbol.png";
 
 const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes
@@ -363,6 +364,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-slate-100 flex font-sans">
+      {/* Global Loading Indicator */}
+      <RouteLoader />
+      
       {/* Desktop Sidebar */}
       <aside className={cn(
         "hidden lg:block fixed h-full z-30 shadow-2xl transition-all duration-300 ease-in-out",

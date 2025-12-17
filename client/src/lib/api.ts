@@ -79,6 +79,7 @@ export function useEquipment() {
       if (!response.ok) throw new Error("Failed to fetch equipment");
       return response.json();
     },
+    staleTime: 30 * 1000, // 30 seconds
   });
 }
 
@@ -146,6 +147,7 @@ export function useLogEntries() {
       if (!response.ok) throw new Error("Failed to fetch log entries");
       return response.json();
     },
+    staleTime: 30 * 1000, // 30 seconds
   });
 }
 
@@ -258,6 +260,7 @@ export function useAuditLogs(limit = 100) {
       if (!response.ok) throw new Error("Failed to fetch audit logs");
       return response.json();
     },
+    staleTime: 30 * 1000, // 30 seconds
   });
 }
 
@@ -270,6 +273,7 @@ export function usePMSchedules() {
       if (!response.ok) throw new Error("Failed to fetch PM schedules");
       return response.json();
     },
+    staleTime: 30 * 1000, // 30 seconds
   });
 }
 
@@ -320,6 +324,7 @@ export function useUsers() {
       if (!response.ok) throw new Error("Failed to fetch users");
       return response.json();
     },
+    staleTime: 30 * 1000, // 30 seconds
   });
 }
 
